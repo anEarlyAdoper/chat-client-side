@@ -10,7 +10,6 @@ import sys
 from rsa.transform import bytes2int, int2bytes
 
 role = ""
-
 user = []
 userkey = []
 nusers = 0
@@ -54,20 +53,15 @@ def enter_server():
 
 os.system('cls||clear')
 enter_server()
-
 stop_thread = False
 
 def sendpaswords():
     global key
     i = 0
     for usr in user:
-        encrypted = rsa.encrypt(key.encode('utf-8'), userkey[i])
-        print(key.encode('utf-8'))
-        print(userkey[i])
-        print(type(encrypted))
+        encrypted = rsa.encrypt(key.encode(), userkey[i])
         msg = f'YOURKEY.{usr}.{str(bytes2int(encrypted))}'
-        print(msg)
-        client.send(msg.encode('utf-8'))
+        client.send(msg.encode())
         i = i + 1
 
 def recieve():
@@ -76,13 +70,13 @@ def recieve():
         global stop_thread, nusers, key
         if stop_thread:
             break
-        message = client.recv(4096).decode('utf-8')
+        message = client.recv(4096).decode()
         if message == 'NICK':
-            client.send(nickname.encode('utf-8'))
-            next_message = client.recv(4096).decode('utf-8')
+            client.send(nickname.encode())
+            next_message = client.recv(4096).decode()
             if next_message == 'PASS':
-                client.send(password.encode('utf-8'))
-                nextnext = client.recv(4096).decode('utf-8')
+                client.send(password.encode())
+                nextnext = client.recv(4096).decode()
                 if nextnext == 'REFUSE':
                     print("Connection is Refused !! Wrong Password")
                     client.close()
@@ -100,9 +94,7 @@ def recieve():
                 print('\nConnected, waiting for admin to encrypt the connection.')
         elif message == 'GIVEMEKEY':
             msg = f'MYKEY.{nickname}.{public_key.save_pkcs1().decode()}'
-            print("publicas")
-            print(public_key)
-            client.send(msg.encode('utf-8'))
+            client.send(msg.encode())
         elif message.startswith('MYKEY'):
             user.append(message.split('.')[1])
             usrkey = rsa.key.PublicKey.load_pkcs1(message.split('.')[2].encode())
@@ -114,19 +106,9 @@ def recieve():
         elif message.startswith('NUSERS'):
             nusers = int(message.split('.')[1])
             print("Hay " + str(nusers) + " connectados. Esperando sus respuestas")
-            client.send(f'GIVEMEKEYS'.encode('utf-8'))
+            client.send(f'GIVEMEKEYS'.encode())
         elif message.startswith('YOURKEY'):
-            print(message)
-            with open('privateKey.pem', 'wb') as p:
-                p.write(private_key.save_pkcs1('PEM'))
-            with open('privateKey.pem', 'rb') as p:
-                priv = rsa.PrivateKey.load_pkcs1(p.read())
-            print(message.split(nickname+".")[1])
-            print(priv)
-            print(type(message.split(nickname+".")[1]))
-            key = rsa.decrypt(int2bytes(int(message.split(nickname+".")[1])), priv).decode('utf-8')
-            print("LLEGHAAAA")
-            print(key)
+            key = rsa.decrypt(int2bytes(int(message.split(nickname+".")[1])), private_key).decode()
         else:
             print(message)
 
@@ -141,17 +123,17 @@ def write():
             if nickname == 'admin':
                 if message[len(nickname)+2:].startswith('/kick'):
                     # 2 for : and whitespace and 6 for /KICK_
-                    client.send(f'KICK {message[len(nickname)+2+6:]}'.encode('utf-8'))
+                    client.send(f'KICK {message[len(nickname)+2+6:]}'.encode())
                 elif message[len(nickname)+2:].startswith('/key'):
                     # 2 for : and whitespace and 5 for /BAN
-                    client.send(f'GIVEMENUSERS'.encode('utf-8'))
+                    client.send(f'GIVEMENUSERS'.encode())
                 elif message[len(nickname)+2:].startswith('/ban'):
                     # 2 for : and whitespace and 5 for /BAN
-                    client.send(f'BAN {message[len(nickname)+2+5:]}'.encode('utf-8'))
+                    client.send(f'BAN {message[len(nickname)+2+5:]}'.encode())
             else:
                 print("Commands can be executed by Admins only !!")
         else:
-            client.send(message.encode('utf-8'))
+            client.send(message.encode())
 
 recieve_thread = threading.Thread(target=recieve)
 recieve_thread.start()
