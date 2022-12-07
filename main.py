@@ -5,8 +5,8 @@ import threading
 import json
 import os
 import rsa
-import sys
 
+from cryptography.fernet import Fernet
 from rsa.transform import bytes2int, int2bytes
 
 role = ""
@@ -14,10 +14,15 @@ user = []
 userkey = []
 nusers = 0
 key = ""
+fernet = None
 nickname = ""
+server_name = ""
+data = []
 
 def enter_server():
     global nickname
+    global server_name
+    global data
     os.system('cls||clear')
     # Enter servers.json to print the names of the servers
     with open('servers.json') as f:
@@ -65,9 +70,8 @@ def sendpaswords():
         i = i + 1
 
 def recieve():
-    global nickname
+    global nickname, server_name, data, fernet, user, stop_thread, nusers, key
     while True:
-        global stop_thread, nusers, key
         if stop_thread:
             break
         message = client.recv(4096).decode()
@@ -101,14 +105,26 @@ def recieve():
             userkey.append(usrkey)
             if len(user) == nusers - 1:
                 print("hemos recibido la respuesta de todos")
-                key = ''.join(random.choices(string.ascii_letters + string.digits, k=128))
+                key = Fernet.generate_key().decode()
+                fernet = Fernet(key.encode())
                 sendpaswords()
         elif message.startswith('NUSERS'):
             nusers = int(message.split('.')[1])
             print("Hay " + str(nusers) + " connectados. Esperando sus respuestas")
             client.send(f'GIVEMEKEYS'.encode())
         elif message.startswith('YOURKEY'):
-            key = rsa.decrypt(int2bytes(int(message.split(nickname+".")[1])), private_key).decode()
+            key = rsa.decrypt(int2bytes(int(message.split(nickname+".")[1])), private_key)
+            fernet = Fernet(key)
+            token = fernet.encrypt(data[server_name]["phrase"].encode()).decode()
+            msg = f'MYPHRASE.{nickname}.{token}'
+            client.send(msg.encode())
+        elif message.startswith('MYPHRASE'):
+            user = message.split('.')[1]
+            secret = message.split('.')[2]
+            if fernet.decrypt(secret).decode() == data[server_name]["phrase"]:
+                print("user " + user + " validado.")
+            else:
+                print("user " + user + "no validado.")
         else:
             print(message)
 
